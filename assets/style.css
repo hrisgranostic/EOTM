@@ -141,7 +141,7 @@ p { margin: 0 0 .75em; }
 .topbar .burger { display: none; }
 .topbar .period-pick { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .topbar .period-pick label { font-size: 13px; color: var(--muted); }
-.content { padding: 28px 32px 64px; max-width: 1240px; width: 100%; }
+.content { padding: 28px 32px 64px; max-width: 1560px; width: 100%; margin: 0 auto; }
 
 .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 24px; margin-bottom: 22px; }
 .page-head h1 { font-family: var(--serif); font-weight: 600; font-size: 34px; letter-spacing: .2px; }
