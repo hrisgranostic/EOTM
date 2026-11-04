@@ -493,7 +493,7 @@
   function progressHtml(pr, per) {
     const rows = pr.penilai.map((x) => {
       const pct = x.total ? Math.round((x.selesai / x.total) * 100) : 0;
-      return `<tr><td><div class="name">${esc(x.nama)}</div><div class="sub">${esc(x.email)}${x.terdaftar ? '' : ' · <span style="color:var(--danger)">belum terdaftar sebagai pengguna</span>'}</div></td>
+      return `<tr><td><div class="name">${esc(x.nama)}</div><div class="sub">NIK ${esc(x.nik)}${x.email ? ' · ' + esc(x.email) : ' · tanpa email'}${x.terdaftar ? '' : ' · <span style="color:var(--danger)">belum terdaftar sebagai pengguna</span>'}</div></td>
         <td style="min-width:160px"><div class="bar ${pct === 100 ? 'gold' : ''}"><i style="width:${pct}%"></i></div></td>
         <td class="num nowrap">${x.selesai} / ${x.total}</td>
         <td class="right">${progressAction(x, per)}</td></tr>`;
@@ -512,9 +512,9 @@
 
   function progressAction(x, per) {
     if (!x.belum.length) return '<span class="pill ok">Selesai</span>';
-    if (per.Status === 'DIBUKA' && can(SA, HR)) return `<button class="btn ghost sm" data-remind="${esc(x.email)}">${ico('mail')}Ingatkan</button>`;
+    if (per.Status === 'DIBUKA' && can(SA, HR)) return x.email ? `<button class="btn ghost sm" data-remind="${esc(x.nik)}" data-nama="${esc(x.nama)}">${ico('mail')}Ingatkan</button>` : '<span class="pill mute" title="Penilai belum punya email">Tanpa email</span>';
     if (x.susulan) return x.susulan.aktif ? `<span class="pill gold">Susulan s/d ${esc(x.susulan.berlakuSampaiTeks)}</span>` : `<span class="pill mute">Susulan berakhir ${esc(x.susulan.berlakuSampaiTeks)}</span>`;
-    if (per.Status === 'DITUTUP' && can(SA)) return `<button class="btn ghost sm" data-susulan="${esc(x.email)}" data-nama="${esc(x.nama)}" data-belum="${x.belum.length}">Buka akses susulan</button>`;
+    if (per.Status === 'DITUTUP' && can(SA)) return `<button class="btn ghost sm" data-susulan="${esc(x.nik)}" data-nama="${esc(x.nama)}" data-belum="${x.belum.length}">Buka akses susulan</button>`;
     return '';
   }
 
@@ -530,15 +530,15 @@
       });
       if (!v) return;
       try {
-        const r = await withBusy('Membuka akses…', () => write('beriSusulan', { pid: per.PeriodeID, email: b.dataset.susulan, hari: v.hari, alasan: v.alasan }));
+        const r = await withBusy('Membuka akses…', () => write('beriSusulan', { pid: per.PeriodeID, nik: b.dataset.susulan, hari: v.hari, alasan: v.alasan }));
         toast('Akses susulan dibuka s/d ' + r.berlakuSampaiTeks + '.', 'ok'); route();
       } catch (e) { toast(e.message, 'err'); }
     });
     $$('[data-remind]', main).forEach((b) => b.onclick = async () => {
-      const email = b.dataset.remind;
+      const nik = b.dataset.remind;
       try {
-        const r = await withBusy('Mengirim pengingat…', () => write('kirimPengingat', { pid: per.PeriodeID, email }));
-        toast(r.terkirim ? 'Pengingat terkirim ke ' + email : 'Gagal: ' + (r.detail[0] ? r.detail[0].status : 'tidak ada yang dikirim'), r.terkirim ? 'ok' : 'err');
+        const r = await withBusy('Mengirim pengingat…', () => write('kirimPengingat', { pid: per.PeriodeID, nik }));
+        toast(r.terkirim ? 'Pengingat terkirim ke ' + (b.dataset.nama || nik) : 'Gagal: ' + (r.detail[0] ? r.detail[0].status : 'tidak ada yang dikirim'), r.terkirim ? 'ok' : 'err');
       } catch (e) { toast(e.message, 'err'); }
     });
   }
@@ -657,7 +657,7 @@
     list.forEach((x) => {
       if (x.Divisi !== lastDiv) { rows += `<tr class="group"><td colspan="5">${esc(x.Divisi || '(tanpa divisi)')}</td></tr>`; lastDiv = x.Divisi; }
       rows += `<tr class="row-link" data-nik="${esc(x.NIK)}" tabindex="0">
-        <td><div class="name">${esc(x.Nama)}</div><div class="sub">${esc(x.Jabatan)} · NIK ${esc(x.NIK)}${semua ? ' · penilai ' + esc(x.EmailPenilai || '-') : ''}</div></td>
+        <td><div class="name">${esc(x.Nama)}</div><div class="sub">${esc(x.Jabatan)} · NIK ${esc(x.NIK)}${semua ? ' · penilai NIK ' + esc(x.NIKPenilai || '-') : ''}</div></td>
         <td><span class="tag">${esc(LEVEL_LABEL[x.Level] || x.Level)}</span></td>
         <td>${nilaiPill(x.statusPA)}${x.totalPA != null ? ` <span class="small muted">${x.totalPA}/150</span>` : ''}</td>
         <td>${nilaiPill(x.statusGR)}${x.totalGR != null ? ` <span class="small muted">${x.totalGR}/100</span>` : ''}</td>
@@ -1370,7 +1370,7 @@
     ['Level', 'Level', 'SPV (termasuk Ast. SPV) / STAF / TIDAK_DINILAI'],
     ['Divisi', 'Divisi', 'Kode/nama divisi, mis. HGI, LAB, KLINIK'],
     ['Email', 'Email karyawan', 'Untuk kirim ucapan & sertifikat bila menang'],
-    ['EmailPenilai', 'Email penilai', 'Email akun pimpinan yang menilai (harus terdaftar sebagai Penilai)'],
+    ['NIKPenilai', 'NIK penilai', 'NIK atasan yang menilai (harus terdaftar sebagai Penilai di Pengguna & akses)'],
     ['Status', 'Status', 'AKTIF / NONAKTIF'],
     ['TglMasuk', 'Tanggal masuk', 'Opsional, format YYYY-MM-DD'],
     ['Catatan', 'Catatan', 'Opsional']
@@ -1378,21 +1378,25 @@
 
   async function pageKaryawan(main) {
     let [list, mj] = await Promise.all([api('daftarKaryawan'), api('daftarJabatan')]);
+    // data lama menunjuk penilai lewat email → pindahkan sekali ke NIK (supaya ganti email tidak memutus relasi)
+    if (can(SA, HR) && list.some((k) => k.PerluMigrasi)) {
+      try { await write('migrasiNIKPenilai', {}); [list, mj] = await Promise.all([api('daftarKaryawan'), api('daftarJabatan')]); } catch (e) { /* diabaikan; terbaca lewat cadangan */ }
+    }
     let q = '', fl = '';
     function render() {
       let rows = list;
       if (q) rows = rows.filter((k) => (k.Nama + ' ' + k.NIK + ' ' + k.Jabatan + ' ' + k.Divisi).toLowerCase().includes(q));
-      if (fl === 'warn') rows = rows.filter((k) => k.Status === 'AKTIF' && k.Level !== 'TIDAK_DINILAI' && (!k.PenilaiValid || !k.Email));
+      if (fl === 'warn') rows = rows.filter((k) => k.Status === 'AKTIF' && k.Level !== 'TIDAK_DINILAI' && !k.PenilaiValid);
       else if (fl) rows = rows.filter((k) => k.Level === fl);
-      const warn = list.filter((k) => k.Status === 'AKTIF' && k.Level !== 'TIDAK_DINILAI' && (!k.PenilaiValid || !k.Email)).length;
+      const warn = list.filter((k) => k.Status === 'AKTIF' && k.Level !== 'TIDAK_DINILAI' && !k.PenilaiValid).length;
       main.innerHTML = `<div class="page-head"><div><h1>Master karyawan</h1><p class="sub">${list.length} karyawan · ${list.filter((k) => k.Status === 'AKTIF' && k.Level !== 'TIDAK_DINILAI').length} aktif dinilai</p></div>
         <div class="actions">${can(SA) ? `<button class="btn ghost" id="k-akun">${ico('key')}Buat akun karyawan</button>` : ''}<button class="btn ghost" id="k-tpl">${ico('download')}Unduh template</button><button class="btn ghost" id="k-imp">${ico('upload')}Impor Excel</button><input type="file" id="k-file" accept=".xlsx,.xls,.csv" hidden><button class="btn" id="k-add">Tambah karyawan</button></div></div>
-        ${warn ? `<div class="note warn" style="margin-bottom:16px"><p><b>${warn} karyawan</b> belum punya penilai yang valid atau email kosong. <button class="linkbtn" id="k-showwarn">Tampilkan</button></p></div>` : ''}
+        ${warn ? `<div class="note warn" style="margin-bottom:16px"><p><b>${warn} karyawan</b> belum punya penilai yang valid (NIK penilai kosong atau belum terdaftar sebagai Penilai). <button class="linkbtn" id="k-showwarn">Tampilkan</button></p></div>` : ''}
         <div class="row" style="margin-bottom:14px"><input class="input" id="k-q" placeholder="Cari nama, NIK, jabatan, divisi…" value="${esc(q)}" style="max-width:340px">
           <select class="input" id="k-fl" style="width:auto"><option value="">Semua level</option><option value="SPV" ${fl === 'SPV' ? 'selected' : ''}>SPV</option><option value="STAF" ${fl === 'STAF' ? 'selected' : ''}>Staf</option><option value="TIDAK_DINILAI" ${fl === 'TIDAK_DINILAI' ? 'selected' : ''}>Tidak dinilai</option><option value="warn" ${fl === 'warn' ? 'selected' : ''}>Perlu dilengkapi</option></select></div>
         ${rows.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>Karyawan</th><th>Level</th><th>Divisi</th><th>Penilai</th><th>Email</th><th>Status</th><th>Akun login</th><th></th></tr></thead><tbody>
         ${rows.map((k) => `<tr><td><div class="name">${esc(k.Nama)}</div><div class="sub">${esc(k.Jabatan)} · ${esc(k.NIK)}</div></td><td><span class="tag">${esc(LEVEL_LABEL[k.Level] || k.Level)}</span></td><td>${esc(k.Divisi)}</td>
-          <td>${k.EmailPenilai ? `<div>${esc(k.NamaPenilai || k.EmailPenilai)}</div>${k.PenilaiValid ? '' : '<div class="sub" style="color:var(--danger)">belum terdaftar sebagai penilai</div>'}` : (k.Level === 'TIDAK_DINILAI' ? '<span class="muted">–</span>' : '<span style="color:var(--danger)">belum diisi</span>')}</td>
+          <td>${k.NIKPenilai ? `<div>${esc(k.NamaPenilai || 'NIK ' + k.NIKPenilai)}</div><div class="sub">NIK ${esc(k.NIKPenilai)}</div>${k.PenilaiValid ? '' : '<div class="sub" style="color:var(--danger)">belum terdaftar sebagai penilai</div>'}` : (k.Level === 'TIDAK_DINILAI' ? '<span class="muted">–</span>' : '<span style="color:var(--danger)">belum diisi</span>')}</td>
           <td class="small">${k.Email ? esc(k.Email) : '<span class="muted">–</span>'}</td><td>${k.Status === 'AKTIF' ? '<span class="pill ok">Aktif</span>' : '<span class="pill mute">Nonaktif</span>'}</td>
           <td>${k.Level === 'TIDAK_DINILAI' ? '<span class="muted">–</span>' : k.Akun === 'AKTIF' ? `<span class="pill ok">Aktif</span><div class="sub">${esc(k.AkunLoginTerakhir || 'belum login')}</div>` : k.Akun === 'SEMENTARA' ? '<span class="pill warn">Password sementara</span>' : '<span class="pill mute">Belum ada</span>'}</td>
           <td class="right nowrap"><button class="btn ghost sm" data-edit="${esc(k.NIK)}">Ubah</button>${can(SA) && k.Level !== 'TIDAK_DINILAI' && k.Status === 'AKTIF' ? ` <button class="btn ghost sm" data-akun="${esc(k.NIK)}" data-nama="${esc(k.Nama)}">${k.Akun ? 'Reset password' : 'Buat akun'}</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
@@ -1421,7 +1425,7 @@
       });
       $$('[data-edit]', main).forEach((b) => b.onclick = () => editKaryawan(list.find((k) => k.NIK === b.dataset.edit)));
       $('#k-tpl', main).onclick = () => downloadXlsx('Template Master Karyawan EOM.xlsx', [
-        { name: 'Karyawan', rows: [KAR_COLS.map((c) => c[0])].concat(list.length ? list.map((k) => KAR_COLS.map((c) => k[c[0]] || '')) : [['220051', 'Freddy Agustinus, S.Ars', 'Koord. GA', 'SPV', 'HGI', 'freddy@contoh.com', 'deiky@contoh.com', 'AKTIF', '', '']]), widths: [12, 30, 22, 14, 10, 28, 28, 10, 12, 20] },
+        { name: 'Karyawan', rows: [KAR_COLS.map((c) => c[0])].concat(list.length ? list.map((k) => KAR_COLS.map((c) => k[c[0]] || '')) : [['220051', 'Freddy Agustinus, S.Ars', 'Koord. GA', 'SPV', 'HGI', 'freddy@contoh.com', '220029', 'AKTIF', '', '']]), widths: [12, 30, 22, 14, 10, 28, 28, 10, 12, 20] },
         { name: 'Petunjuk', rows: [['Kolom', 'Keterangan']].concat(KAR_COLS.map((c) => [c[0], c[2]])), widths: [16, 80] }
       ]).catch((e) => toast(e.message, 'err'));
       $('#k-imp', main).onclick = () => $('#k-file', main).click();
@@ -1431,7 +1435,7 @@
         try {
           const { header, rows: data } = await withBusy('Membaca file…', () => readSheetRows(file, 'NIK'));
           const alias = {}; KAR_COLS.forEach((c) => { alias[normHead(c[0])] = c[0]; alias[normHead(c[1])] = c[0]; });
-          Object.assign(alias, { emailatasan: 'EmailPenilai', penilai: 'EmailPenilai', departemen: 'Divisi', dept: 'Divisi', namakaryawan: 'Nama' });
+          Object.assign(alias, { nikatasan: 'NIKPenilai', penilai: 'NIKPenilai', emailpenilai: 'EmailPenilai', emailatasan: 'EmailPenilai', departemen: 'Divisi', dept: 'Divisi', namakaryawan: 'Nama' });
           const map = header.map((h) => alias[normHead(h)] || null);
           if (!map.includes('NIK') || !map.includes('Nama')) throw new Error('Kolom NIK dan Nama wajib ada.');
           const baris = data.map(({ r, line }) => { const o = { _baris: line }; map.forEach((f, i) => { if (f) o[f] = String(r[i]).trim(); }); return o; });
@@ -1460,15 +1464,15 @@
       }
     }
     async function editKaryawan(k) {
-      const isNew = !k; k = k || { Status: 'AKTIF', Level: '', Jabatan: '', Divisi: '', EmailPenilai: '' };
+      const isNew = !k; k = k || { Status: 'AKTIF', Level: '', Jabatan: '', Divisi: '', NIKPenilai: '' };
       const jabAktif = mj.jabatan.filter((j) => j.Aktif || j.Nama === k.Jabatan);
       const pakaiMaster = jabAktif.length > 0;
       const jabLuar = k.Jabatan && !mj.jabatan.some((j) => j.Nama.toLowerCase() === String(k.Jabatan).toLowerCase());
       const divs = [...new Set([...(mj.divisi || []), ...(S.boot.divisi || [])])].sort();
       const penilai = mj.penilai;
-      const penLuar = k.EmailPenilai && !penilai.some((p) => p.email === String(k.EmailPenilai).toLowerCase());
-      const optPenilai = (sel) => `<option value="">— belum ada —</option>` + penilai.map((p) => `<option value="${esc(p.email)}" ${p.email === String(sel || '').toLowerCase() ? 'selected' : ''}>${esc(p.nama)}${p.jabatan ? ' · ' + esc(p.jabatan) : ''}</option>`).join('')
-        + (penLuar ? `<option value="${esc(k.EmailPenilai)}" selected>${esc(k.EmailPenilai)} (belum terdaftar)</option>` : '');
+      const penLuar = k.NIKPenilai && !penilai.some((p) => String(p.nik).toLowerCase() === String(k.NIKPenilai).toLowerCase());
+      const optPenilai = (sel) => `<option value="">— belum ada —</option>` + penilai.map((p) => `<option value="${esc(p.nik)}" ${String(p.nik).toLowerCase() === String(sel || '').toLowerCase() ? 'selected' : ''}>${esc(p.nama)} · NIK ${esc(p.nik)}${p.jabatan ? ' · ' + esc(p.jabatan) : ''}</option>`).join('')
+        + (penLuar ? `<option value="${esc(k.NIKPenilai)}" selected>NIK ${esc(k.NIKPenilai)} (belum terdaftar)</option>` : '');
       const jabField = pakaiMaster
         ? `<select class="input" id="e-Jabatan"><option value="">— pilih jabatan —</option>${jabAktif.map((j) => `<option value="${esc(j.Nama)}" ${j.Nama === k.Jabatan ? 'selected' : ''}>${esc(j.Nama)} · ${esc(j.Divisi)}</option>`).join('')}${jabLuar ? `<option value="${esc(k.Jabatan)}" selected>${esc(k.Jabatan)} (belum ada di master)</option>` : ''}</select><small>Divisi, level & penilai terisi otomatis dari master jabatan. ${can(SA) ? '<a href="#/jabatan">Kelola jabatan</a>' : ''}</small>`
         : `<input class="input" id="e-Jabatan" value="${esc(k.Jabatan || '')}"><small>Master jabatan belum diisi${can(SA) ? ' — <a href="#/jabatan">isi di sini</a>' : ''}.</small>`;
@@ -1480,8 +1484,8 @@
           <label class="field"><span>Jabatan</span>${jabField}</label>
           <label class="field"><span>Divisi</span><input class="input" id="e-Divisi" list="dl-div" value="${esc(k.Divisi || '')}"><datalist id="dl-div">${divs.map((d) => `<option value="${esc(d)}">`).join('')}</datalist></label>
           <label class="field"><span>Level</span><select class="input" id="e-Level"><option value="">— pilih —</option>${['SPV', 'STAF', 'TIDAK_DINILAI'].map((l) => `<option value="${l}" ${k.Level === l ? 'selected' : ''}>${LEVEL_LABEL[l]}</option>`).join('')}</select><small>SPV termasuk Ast. SPV. Manager/KaDept = tidak dinilai.</small></label>
-          <label class="field"><span>Penilai (atasan langsung)</span><select class="input" id="e-EmailPenilai">${optPenilai(k.EmailPenilai)}</select></label>
-          <label class="field"><span>Email karyawan</span><input class="input" type="email" id="e-Email" value="${esc(k.Email || '')}"><small>Untuk email ucapan & sertifikat bila menang.</small></label>
+          <label class="field"><span>Penilai (atasan langsung)</span><select class="input" id="e-NIKPenilai">${optPenilai(k.NIKPenilai)}</select></label>
+          <label class="field"><span>Email karyawan (opsional)</span><input class="input" type="email" id="e-Email" value="${esc(k.Email || '')}"><small>Hanya untuk kirim ucapan & sertifikat bila menang. Boleh diganti kapan saja — sistem mengenali karyawan lewat NIK.</small></label>
           <label class="field"><span>Status</span><select class="input" id="e-Status"><option ${k.Status === 'AKTIF' ? 'selected' : ''}>AKTIF</option><option ${k.Status === 'NONAKTIF' ? 'selected' : ''}>NONAKTIF</option></select></label>
           <label class="field"><span>Tanggal masuk</span><input class="input" type="date" id="e-TglMasuk" value="${esc(k.TglMasuk || '')}"></label>
           <label class="field"><span>Catatan</span><input class="input" id="e-Catatan" value="${esc(k.Catatan || '')}"></label></div>`,
@@ -1493,8 +1497,8 @@
             if (!j) return;
             $('#e-Divisi', d).value = j.Divisi;
             $('#e-Level', d).value = j.Level;
-            if (j.EmailPenilai) $('#e-EmailPenilai', d).value = j.EmailPenilai;
-            if (j.Level === 'TIDAK_DINILAI') $('#e-EmailPenilai', d).value = '';
+            if (j.NIKPenilai) $('#e-NIKPenilai', d).value = j.NIKPenilai;
+            if (j.Level === 'TIDAK_DINILAI') $('#e-NIKPenilai', d).value = '';
           };
         },
         buttons: [{ label: 'Batal', value: null, cls: 'ghost' }, {
@@ -1530,7 +1534,7 @@
       rows.forEach((j) => {
         if (j.Divisi !== lastDiv) { body += `<tr class="group"><td colspan="6">${esc(j.Divisi)}</td></tr>`; lastDiv = j.Divisi; }
         body += `<tr${j.Aktif ? '' : ' class="muted"'}><td><div class="name">${esc(j.Nama)}</div></td><td><span class="tag">${esc(LEVEL_LABEL[j.Level] || j.Level)}</span></td>
-          <td>${j.Level === 'TIDAK_DINILAI' ? '<span class="muted">–</span>' : j.EmailPenilai ? `<div>${esc(j.NamaPenilai || j.EmailPenilai)}</div><div class="sub">${esc(j.EmailPenilai)}</div>` : '<span style="color:var(--warn)">belum diatur</span>'}</td>
+          <td>${j.Level === 'TIDAK_DINILAI' ? '<span class="muted">–</span>' : j.NIKPenilai ? `<div>${esc(j.NamaPenilai || 'NIK ' + j.NIKPenilai)}</div><div class="sub">NIK ${esc(j.NIKPenilai)}</div>` : '<span style="color:var(--warn)">belum diatur</span>'}</td>
           <td class="num">${j.KaryawanAktif}${j.JumlahKaryawan > j.KaryawanAktif ? `<div class="sub">+${j.JumlahKaryawan - j.KaryawanAktif} nonaktif</div>` : ''}</td>
           <td>${j.Aktif ? '<span class="pill ok">Aktif</span>' : '<span class="pill mute">Nonaktif</span>'}</td>
           <td class="right nowrap">${isSA ? `<button class="btn ghost sm" data-edit="${esc(j.Nama)}">Ubah</button>${j.JumlahKaryawan ? '' : ` <button class="btn danger sm" data-del="${esc(j.Nama)}">Hapus</button>`}` : ''}</td></tr>`;
@@ -1555,19 +1559,19 @@
       });
     }
     async function edit(j) {
-      const isNew = !j; j = j || { Nama: '', Divisi: '', Level: 'STAF', EmailPenilai: '', Aktif: true, JumlahKaryawan: 0 };
+      const isNew = !j; j = j || { Nama: '', Divisi: '', Level: 'STAF', NIKPenilai: '', Aktif: true, JumlahKaryawan: 0 };
       const v = await modal({
         title: isNew ? 'Tambah jabatan' : 'Ubah jabatan',
         body: `<div class="grid-2">
           <label class="field"><span>Nama jabatan</span><input class="input" id="j-Nama" maxlength="100" value="${esc(j.Nama)}"><small>Harus unik, mis. "Analis Lab", "Admin Klinik".</small></label>
           <label class="field"><span>Divisi</span><input class="input" id="j-Divisi" list="dl-jdiv" value="${esc(j.Divisi)}"><datalist id="dl-jdiv">${d.divisi.map((x) => `<option value="${esc(x)}">`).join('')}</datalist></label>
           <label class="field"><span>Level</span><select class="input" id="j-Level">${['SPV', 'STAF', 'TIDAK_DINILAI'].map((l) => `<option value="${l}" ${j.Level === l ? 'selected' : ''}>${LEVEL_LABEL[l]}</option>`).join('')}</select><small>SPV termasuk Ast. SPV. Manager/KaDept = tidak dinilai.</small></label>
-          <label class="field"><span>Penilai default (atasan)</span><select class="input" id="j-Penilai"><option value="">— belum ada —</option>${d.penilai.map((p) => `<option value="${esc(p.email)}" ${p.email === String(j.EmailPenilai || '').toLowerCase() ? 'selected' : ''}>${esc(p.nama)}${p.jabatan ? ' · ' + esc(p.jabatan) : ''}</option>`).join('')}</select><small>Hanya pengguna berperan Penilai.</small></label></div>
+          <label class="field"><span>Penilai default (atasan)</span><select class="input" id="j-Penilai"><option value="">— belum ada —</option>${d.penilai.map((p) => `<option value="${esc(p.nik)}" ${String(p.nik).toLowerCase() === String(j.NIKPenilai || '').toLowerCase() ? 'selected' : ''}>${esc(p.nama)} · NIK ${esc(p.nik)}${p.jabatan ? ' · ' + esc(p.jabatan) : ''}</option>`).join('')}</select><small>Hanya pengguna berperan Penilai.</small></label></div>
           <label class="check" style="margin-top:14px"><input type="checkbox" id="j-Aktif" ${j.Aktif ? 'checked' : ''}> Jabatan aktif (muncul di pilihan saat tambah karyawan)</label>
           ${!isNew && j.JumlahKaryawan ? `<div class="note" style="margin-top:14px"><label class="check"><input type="checkbox" id="j-terapkan"> Terapkan divisi, level & penilai ini ke <b>${j.JumlahKaryawan} karyawan</b> berjabatan ini</label><p class="small muted" style="margin:6px 0 0 25px">Mengganti nama jabatan selalu ikut memperbarui karyawannya.</p></div>` : ''}`,
         buttons: [{ label: 'Batal', value: null, cls: 'ghost' }, {
           label: 'Simpan', value: 'ok', validate: async (m) => {
-            const o = { Nama: $('#j-Nama', m).value.trim(), NamaLama: isNew ? '' : j.Nama, Divisi: $('#j-Divisi', m).value.trim(), Level: $('#j-Level', m).value, EmailPenilai: $('#j-Penilai', m).value, Aktif: $('#j-Aktif', m).checked };
+            const o = { Nama: $('#j-Nama', m).value.trim(), NamaLama: isNew ? '' : j.Nama, Divisi: $('#j-Divisi', m).value.trim(), Level: $('#j-Level', m).value, NIKPenilai: $('#j-Penilai', m).value, Aktif: $('#j-Aktif', m).checked };
             if (!o.Nama || !o.Divisi) { toast('Nama jabatan dan divisi wajib diisi.', 'err'); return false; }
             const t = $('#j-terapkan', m);
             try {
@@ -1598,13 +1602,13 @@
     function render() {
       main.innerHTML = `<div class="page-head"><div><h1>Pengguna & akses</h1><p class="sub">Akun untuk penilai, HR, Direksi, dan manajer. Login memakai NIK; password sementara dikirim via email saat akun dibuat.</p></div>
         <div class="actions">${list.some((u) => u.Aktif && !u.AdaPassword) ? `<button class="btn gold" id="u-bulk">${ico('key')}Buat password untuk yang belum punya (${list.filter((u) => u.Aktif && !u.AdaPassword).length})</button>` : ''}<button class="btn" id="u-add">Tambah pengguna</button></div></div>
-        <div class="note" style="margin-bottom:16px"><p><b>Super Admin</b>: semua menu · <b>Admin HR</b>: kehadiran, master karyawan, hitung & progres · <b>Penilai</b>: isi PA & Grooming untuk karyawan yang menunjuk email-nya · <b>Direksi</b>: lihat hasil & sahkan pemenang · <b>Manajer Dept</b>: memberi suara untuk kandidat dari divisi lain (wajib isi Divisi). Satu akun boleh punya lebih dari satu peran. Karyawan yang dinilai login dengan <b>NIK</b> — akunnya dibuat dari menu Master karyawan.</p></div>
+        <div class="note" style="margin-bottom:16px"><p><b>Super Admin</b>: semua menu · <b>Admin HR</b>: kehadiran, master karyawan, hitung & progres · <b>Penilai</b>: isi PA & Grooming untuk karyawan yang menunjuk NIK-nya sebagai penilai · <b>Direksi</b>: lihat hasil & sahkan pemenang · <b>Manajer Dept</b>: memberi suara untuk kandidat dari divisi lain (wajib isi Divisi). Satu akun boleh punya lebih dari satu peran. Karyawan yang dinilai login dengan <b>NIK</b> — akunnya dibuat dari menu Master karyawan.</p></div>
         <div class="table-wrap"><table class="t"><thead><tr><th>Pengguna</th><th>Peran</th><th>Login terakhir</th><th>Status</th><th></th></tr></thead><tbody>
-        ${list.map((u) => `<tr><td><div class="name">${esc(u.Nama)}</div><div class="sub">NIK <b>${esc(u.NIK || '—')}</b> · ${esc(u.Email)}${u.Jabatan ? ' · ' + esc(u.Jabatan) : ''}</div></td>
+        ${list.map((u, i) => `<tr><td><div class="name">${esc(u.Nama)}</div><div class="sub">NIK <b>${esc(u.NIK || '—')}</b> · ${u.Email ? esc(u.Email) : '<span class="muted">tanpa email</span>'}${u.Jabatan ? ' · ' + esc(u.Jabatan) : ''}</div></td>
           <td>${u.Peran.map((p) => `<span class="tag">${esc(PERAN_LABEL[p] || p)}${p === 'MANAJER_DEPT' && u.Divisi ? ' · ' + esc(u.Divisi) : ''}</span>`).join(' ')}</td>
           <td class="small">${esc(u.LoginTerakhir || '–')}${!u.AdaPassword ? '<div class="sub" style="color:var(--danger)">belum punya password</div>' : (u.WajibGantiPassword ? '<div class="sub">masih password sementara</div>' : '')}</td>
           <td>${u.Aktif ? '<span class="pill ok">Aktif</span>' : '<span class="pill mute">Nonaktif</span>'}</td>
-          <td class="right nowrap"><button class="btn ghost sm" data-edit="${esc(u.Email)}">Ubah</button> <button class="btn ghost sm" data-reset="${esc(u.Email)}">Reset password</button></td></tr>`).join('')}</tbody></table></div>`;
+          <td class="right nowrap"><button class="btn ghost sm" data-edit="${i}">Ubah</button> ${u.NIK ? `<button class="btn ghost sm" data-reset="${esc(u.NIK)}" data-nama="${esc(u.Nama)}">Reset password</button>` : '<span class="muted small" title="Lengkapi NIK lewat tombol Ubah">isi NIK dulu</span>'}</td></tr>`).join('')}</tbody></table></div>`;
       $('#u-add', main).onclick = () => edit(null);
       const bulk = $('#u-bulk', main);
       if (bulk) bulk.onclick = async () => {
@@ -1632,10 +1636,10 @@
           if (r.hasil.length || r.lewati.length) await tampil(); else toast('Semua pengguna sudah punya password.', 'ok');
         } catch (e) { toast(e.message, 'err'); }
       };
-      $$('[data-edit]', main).forEach((b) => b.onclick = () => edit(list.find((u) => u.Email === b.dataset.edit)));
+      $$('[data-edit]', main).forEach((b) => b.onclick = () => edit(list[Number(b.dataset.edit)]));
       $$('[data-reset]', main).forEach((b) => b.onclick = async () => {
-        if (!await confirmBox('Reset password', `<p>Buat password sementara baru untuk <b>${esc(b.dataset.reset)}</b>? Password baru dikirim ke email tersebut dan ditampilkan di sini.</p>`, 'Reset password', 'danger')) return;
-        try { const r = await withBusy('Memproses…', () => write('resetPassword', { email: b.dataset.reset })); await modal({ title: 'Password sementara', body: `<p>Berikan ke ${esc(b.dataset.reset)} bila email tidak masuk:</p><div class="pwd-box">${esc(r.passwordSementara)}</div>` }); list = await api('daftarPengguna'); render(); } catch (e) { toast(e.message, 'err'); }
+        if (!await confirmBox('Reset password', `<p>Buat password sementara baru untuk <b>${esc(b.dataset.nama)}</b> (NIK ${esc(b.dataset.reset)})? Password baru dikirim ke emailnya (bila ada) dan ditampilkan di sini.</p>`, 'Reset password', 'danger')) return;
+        try { const r = await withBusy('Memproses…', () => write('resetPassword', { nik: b.dataset.reset })); await modal({ title: 'Password sementara', body: `<p>Berikan ke ${esc(b.dataset.nama)} (NIK ${esc(b.dataset.reset)}) bila email tidak masuk:</p><div class="pwd-box">${esc(r.passwordSementara)}</div>` }); list = await api('daftarPengguna'); render(); } catch (e) { toast(e.message, 'err'); }
       });
     }
     async function edit(u) {
@@ -1644,9 +1648,9 @@
       const v = await modal({
         title: isNew ? 'Tambah pengguna' : 'Ubah pengguna',
         body: `<div class="grid-2">
-          <label class="field"><span>Email (untuk login)</span><input class="input" type="email" id="u-Email" value="${esc(u.Email || '')}" ${isNew ? '' : 'readonly'}></label>
+          <label class="field"><span>NIK (untuk login)</span><input class="input" id="u-NIK" value="${esc(u.NIK || '')}" inputmode="text" autocomplete="off" ${u.NIK ? 'readonly' : ''}><small>${u.NIK ? 'NIK adalah kunci akun dan tidak bisa diubah.' : 'Wajib dan unik. Dipakai untuk login dan menghubungkan penilai ke karyawannya.'}</small></label>
           <label class="field"><span>Nama</span><input class="input" id="u-Nama" value="${esc(u.Nama || '')}"></label>
-          <label class="field"><span>NIK (untuk login)</span><input class="input" id="u-NIK" value="${esc(u.NIK || '')}" inputmode="text" autocomplete="off"><small>Wajib dan unik. Dipakai untuk login dan agar tidak diminta menilai diri sendiri.</small></label>
+          <label class="field"><span>Email (opsional)</span><input class="input" type="email" id="u-Email" value="${esc(u.Email || '')}"><small>Hanya untuk notifikasi. Boleh diganti kapan saja tanpa memutus akses.</small></label>
           <label class="field"><span>Jabatan</span><input class="input" id="u-Jabatan" value="${esc(u.Jabatan || '')}"></label>
           <label class="field"><span>Divisi (untuk Manajer Dept)</span><input class="input" id="u-Divisi" list="u-div-list" value="${esc(u.Divisi || '')}" placeholder="mis. HGI"><datalist id="u-div-list">${(S.boot.divisi || []).map((d) => `<option value="${esc(d)}">`).join('')}</datalist><small>Divisi yang dia pimpin. Kandidat dari divisi ini tidak bisa dia pilih. Beberapa divisi: pisahkan dengan koma.</small></label></div>
           <fieldset style="border:0;padding:0;margin:16px 0 0"><legend class="field" style="font-weight:600;font-size:13.5px;color:var(--ink);margin-bottom:8px">Peran</legend>
@@ -1654,7 +1658,7 @@
           <label class="check" style="margin-top:14px"><input type="checkbox" id="u-Aktif" ${u.Aktif ? 'checked' : ''}> Akun aktif</label>`,
         buttons: [{ label: 'Batal', value: null, cls: 'ghost' }, {
           label: 'Simpan', value: 'ok', validate: async (d) => {
-            const o = { Email: $('#u-Email', d).value.trim(), Nama: $('#u-Nama', d).value.trim(), NIK: $('#u-NIK', d).value.trim(), Jabatan: $('#u-Jabatan', d).value.trim(), Divisi: $('#u-Divisi', d).value.trim(), Peran: $$('[data-role]:checked', d).map((x) => x.value), Aktif: $('#u-Aktif', d).checked };
+            const o = { Ubah: !isNew, Email: $('#u-Email', d).value.trim(), Nama: $('#u-Nama', d).value.trim(), NIK: $('#u-NIK', d).value.trim(), Jabatan: $('#u-Jabatan', d).value.trim(), Divisi: $('#u-Divisi', d).value.trim(), Peran: $$('[data-role]:checked', d).map((x) => x.value), Aktif: $('#u-Aktif', d).checked };
             try {
               const r = await write('simpanPengguna', { pengguna: o });
               if (r.galat.length) { toast(r.galat[0].pesan, 'err'); return false; }
@@ -1664,7 +1668,7 @@
         }]
       });
       if (v !== 'ok') return;
-      if (result && result.passwordSementara) await modal({ title: 'Akun dibuat', body: `<p>Password sementara sudah dikirim ke <b>${esc(result.Email)}</b>. Simpan juga di sini bila email tidak masuk:</p><div class="pwd-box">${esc(result.passwordSementara)}</div>` });
+      if (result && result.passwordSementara) await modal({ title: 'Akun dibuat', body: `<p>Login memakai NIK <b>${esc(result.NIK)}</b>. ${result.Email ? 'Password sementara sudah dikirim ke <b>' + esc(result.Email) + '</b>. Simpan juga di sini bila email tidak masuk:' : 'Pengguna ini tidak punya email — berikan password sementara ini langsung:'}</p><div class="pwd-box">${esc(result.passwordSementara)}</div>` });
       else toast('Pengguna tersimpan.', 'ok');
       list = await api('daftarPengguna'); render();
     }
@@ -2119,7 +2123,7 @@
         <div class="table-wrap"><table class="t"><thead><tr>${jenis === 'email' ? '<th>Waktu</th><th>Jenis</th><th>Kepada</th><th>Subjek</th><th>Status</th>' : '<th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Periode</th><th>Detail</th>'}</tr></thead><tbody>
         ${rows.map((x) => jenis === 'email'
           ? `<tr><td class="nowrap small">${esc(x.Waktu)}</td><td class="small">${esc(x.Jenis)}</td><td class="small">${esc(x.Kepada)}${x.CC ? `<div class="sub">CC ${esc(x.CC)}</div>` : ''}</td><td class="small">${esc(x.Subjek)}</td><td>${x.Status === 'TERKIRIM' ? '<span class="pill ok">Terkirim</span>' : `<span class="pill danger">Gagal</span><div class="sub">${esc(x.Keterangan)}</div>`}</td></tr>`
-          : `<tr><td class="nowrap small">${esc(x.Waktu)}</td><td class="small">${esc(x.Email)}</td><td><span class="tag">${esc(x.Aksi)}</span></td><td class="small">${esc(labelPid(x.PeriodeID))}</td><td class="small" style="max-width:420px;word-break:break-word">${esc(x.Detail)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Belum ada catatan.</td></tr>'}</tbody></table></div>`;
+          : `<tr><td class="nowrap small">${esc(x.Waktu)}</td><td class="small">${x.Nama ? esc(x.Nama) + `<div class="sub">${esc(x.Email)}</div>` : esc(x.Email)}</td><td><span class="tag">${esc(x.Aksi)}</span></td><td class="small">${esc(labelPid(x.PeriodeID))}</td><td class="small" style="max-width:420px;word-break:break-word">${esc(x.Detail)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Belum ada catatan.</td></tr>'}</tbody></table></div>`;
       $$('[data-j]', main).forEach((b) => b.onclick = () => { jenis = b.dataset.j; render().catch((e) => toast(e.message, 'err')); });
     }
     await render();
