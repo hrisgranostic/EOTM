@@ -236,7 +236,7 @@
       body: `${forced ? '<div class="note warn" style="margin-bottom:14px">Anda masih memakai password sementara. Buat password baru dulu.</div>' : ''}
         <div class="stack">
           <label class="field"><span>Password lama / sementara</span><input class="input" type="password" id="pw-old" autocomplete="current-password"></label>
-          <label class="field"><span>Password baru</span><input class="input" type="password" id="pw-new" autocomplete="new-password"><small>Minimal 8 karakter, kombinasi huruf dan angka.</small></label>
+          <label class="field"><span>Password baru</span><input class="input" type="password" id="pw-new" autocomplete="new-password"><small>Minimal 4 karakter. Boleh huruf, angka, atau campuran.</small></label>
           <label class="field"><span>Ulangi password baru</span><input class="input" type="password" id="pw-new2" autocomplete="new-password"></label>
         </div>`,
       buttons: [
@@ -2038,7 +2038,8 @@
         <div class="grid-2"><label class="field"><span>Mode pengiriman</span><select class="input" data-k="MODE_KIRIM"><option value="MANUAL" ${v.MODE_KIRIM === 'MANUAL' ? 'selected' : ''}>Manual — Super Admin klik "Kirim ke pemenang"</option><option value="OTOMATIS" ${v.MODE_KIRIM === 'OTOMATIS' ? 'selected' : ''}>Otomatis — langsung terkirim begitu disahkan</option></select></label>
         <label class="field"><span>CC manajemen</span><textarea class="input" data-k="CC_MANAJEMEN" placeholder="email1@..., email2@...">${esc(v.CC_MANAJEMEN || '')}</textarea><small>Pisahkan dengan koma.</small></label>
         ${f('NAMA_PENGIRIM', 'Nama pengirim', '')}${f('EMAIL_ALIAS', 'Alamat pengirim (Send As)', 'Kosongkan bila tidak memakai alias Gmail', 'email')}
-        ${f('APP_URL', 'Link aplikasi', 'URL GitHub Pages; dipakai untuk tombol di email', 'url')}</div></section>
+        ${f('APP_URL', 'Link aplikasi', 'URL GitHub Pages; dipakai untuk tombol di email', 'url')}
+        ${f('PASSWORD_AWAL_KARYAWAN', 'Password awal umum karyawan', 'Dipakai untuk semua akun karyawan baru. Kosongkan = acak per orang. Min. 4 karakter, huruf dan angka. Wajib diganti saat login pertama.', 'text')}</div></section>
       <section class="panel"><h2>Kandidat & bobot</h2>
         <div class="grid-3">${f('JUMLAH_BACKUP', 'Jumlah backup disimpan', 'Backup otomatis tiap tanggal 1; yang lebih lama dibuang', 'number', 'min="3" max="60"')}${f('KANDIDAT_SPV_PER_DIV', 'Kandidat SPV per divisi', '', 'number', 'min="0" max="12"')}${f('KANDIDAT_STAF_PER_DIV', 'Kandidat Staf per divisi', '', 'number', 'min="0" max="12"')}${f('JEDA_MENANG_BULAN', 'Jeda menang lagi (bulan)', '0 = boleh menang berturut-turut', 'number', 'min="0" max="12"')}
         ${f('BOBOT_KEHADIRAN', 'Bobot kehadiran (%)', '', 'number')}${f('BOBOT_PA', 'Bobot Performance Appraisal (%)', '', 'number')}${f('BOBOT_GROOMING', 'Bobot grooming (%)', 'Total ketiganya harus 100', 'number')}</div></section>
