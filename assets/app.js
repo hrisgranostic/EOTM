@@ -52,6 +52,7 @@
     home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
     pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
     chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
     book: '<path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M4 17a3 3 0 0 1 3-3h11"/>',
@@ -283,9 +284,9 @@
     const list = S.boot.periode || [];
     const t = S.boot.hariIni;
     const nowPid = t.y + '-' + String(t.m).padStart(2, '0');
-    if (S.pid && list.some((p) => p.PeriodeID === S.pid)) return;
+    if (S.pid && /^\d{4}-(0[1-9]|1[0-2])$/.test(S.pid)) return; // bulan apa pun boleh dipilih (belum dibuat = tampil kosong)
     const cur = list.find((p) => p.PeriodeID === nowPid);
-    S.pid = cur ? cur.PeriodeID : (list[0] ? list[0].PeriodeID : null);
+    S.pid = cur ? cur.PeriodeID : (list[0] ? list[0].PeriodeID : nowPid);
     store.set('pid', S.pid);
   }
   const curPeriode = () => (S.boot.periode || []).find((p) => p.PeriodeID === S.pid) || null;
@@ -313,6 +314,7 @@
     { group: 'Pengelolaan' },
     { href: '#/karyawan', label: 'Master karyawan', icon: 'users', roles: [SA, HR] },
     { href: '#/jabatan', label: 'Master jabatan', icon: 'badge', roles: [SA, HR] },
+    { href: '#/periode', label: 'Kelola periode', icon: 'cal', roles: [SA] },
     { href: '#/pengguna', label: 'Pengguna & akses', icon: 'key', roles: [SA] },
     { href: '#/pengaturan', label: 'Pengaturan', icon: 'gear', roles: [SA] },
     { href: '#/log', label: 'Log aktivitas', icon: 'list', roles: [SA] }
@@ -361,16 +363,22 @@
     if (!el) return;
     if (isKaryawanSaja()) { el.innerHTML = ''; return; }
     const list = S.boot.periode || [];
-    if (!list.length) { el.innerHTML = '<span class="muted small">Belum ada periode</span>'; return; }
-    el.innerHTML = `<label for="sel-pid">Periode</label><select class="input" id="sel-pid" style="width:auto;min-height:36px">${list.map((p) =>
-      `<option value="${esc(p.PeriodeID)}" ${p.PeriodeID === S.pid ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select>`;
-    $('#sel-pid').onchange = (e) => { S.pid = e.target.value; store.set('pid', S.pid); route(); };
+    const [cy, cm] = (S.pid || '').split('-').map(Number);
+    const t = S.boot.hariIni;
+    const years = [...new Set(list.map((p) => Number(p.PeriodeID.slice(0, 4))).concat([t.y, t.y - 1, t.y + 1, cy].filter(Boolean)))].sort((a, b) => b - a);
+    const byId = Object.fromEntries(list.map((p) => [p.PeriodeID, p]));
+    const mo = (m) => { const id = cy + '-' + String(m).padStart(2, '0'); const x = byId[id]; return `<option value="${m}" ${m === cm ? 'selected' : ''}>${BULAN[m - 1]}${x ? ' ●' : ''}</option>`; };
+    el.innerHTML = `<label for="sel-thn">Periode</label>
+      <select class="input" id="sel-bln" aria-label="Bulan" style="width:auto;min-height:36px">${BULAN.map((_, i) => mo(i + 1)).join('')}</select>
+      <select class="input" id="sel-thn" aria-label="Tahun" style="width:auto;min-height:36px">${years.map((y) => `<option value="${y}" ${y === cy ? 'selected' : ''}>${y}</option>`).join('')}</select>`;
+    const pick = () => { S.pid = $('#sel-thn').value + '-' + String($('#sel-bln').value).padStart(2, '0'); store.set('pid', S.pid); renderPeriodPicker(); route(); };
+    $('#sel-bln').onchange = pick; $('#sel-thn').onchange = pick;
   }
 
   /* ------------------------------------------------------------------ router */
   const ROUTES = {
     beranda: pageBeranda, 'nilai-saya': pageNilaiSaya, penilaian: pagePenilaian, kehadiran: pageKehadiran, hasil: pageHasil, vote: pageVote, pemenang: pagePemenang, undian: pageUndian, laporan: pageLaporan, rekap: pageRekap,
-    riwayat: pageRiwayat, karyawan: pageKaryawan, jabatan: pageJabatan, pengguna: pagePengguna, pengaturan: pagePengaturan, log: pageLog
+    riwayat: pageRiwayat, karyawan: pageKaryawan, jabatan: pageJabatan, periode: pageKelolaPeriode, pengguna: pagePengguna, pengaturan: pagePengaturan, log: pageLog
   };
   let leaveGuard = null;
   window.addEventListener('beforeunload', (e) => { if (leaveGuard && leaveGuard()) { e.preventDefault(); e.returnValue = ''; } });
@@ -390,6 +398,12 @@
     route.last = location.hash;
     $$('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.nav === '#/' + name));
     const main = $('#main');
+    if (['penilaian', 'kehadiran', 'hasil', 'vote', 'pemenang', 'undian', 'laporan'].includes(name) && !curPeriode()) {
+      document.title = (nav ? nav.label : 'Employee of the Month') + ' · EOM Granostic';
+      main.innerHTML = periodeKosongHtml();
+      bindPeriodeKosong(main);
+      return;
+    }
     main.innerHTML = '<div class="empty"><div class="spinner" style="margin:0 auto"></div></div>';
     document.title = (nav ? nav.label : 'Employee of the Month') + ' · EOM Granostic';
     try {
@@ -399,6 +413,23 @@
       $('#reload').onclick = route;
     }
     main.focus({ preventScroll: true });
+  }
+
+  function periodeKosongHtml() {
+    const lbl = labelPid(S.pid);
+    return `<div class="panel"><div class="empty"><h3>Periode ${esc(lbl)} belum dibuat</h3>
+      <p>${can(SA) ? 'Anda bisa membuat dan membukanya sekarang, atau mengatur semua periode dari menu Kelola periode.' : 'HR belum membuka periode ini. Pilih bulan lain di kanan atas.'}</p>
+      ${can(SA) ? `<div class="row" style="justify-content:center;margin-top:12px"><button class="btn" id="pk-buat">Buat & buka ${esc(lbl)}</button><a class="btn ghost" href="#/periode">Kelola periode</a></div>` : ''}</div></div>`;
+  }
+  function bindPeriodeKosong(main) {
+    const b = $('#pk-buat', main);
+    if (!b) return;
+    b.onclick = async () => {
+      try {
+        await withBusy('Membuat periode…', () => write('buatPeriode', { pid: S.pid, langsungBuka: true }));
+        await refreshBoot(); toast('Periode ' + labelPid(S.pid) + ' dibuat dan dibuka.', 'ok'); route();
+      } catch (e) { toast(e.message, 'err'); }
+    };
   }
 
   function noPeriodHtml() {
@@ -623,7 +654,7 @@
 
   function createPeriodPanel() {
     const t = S.boot.hariIni;
-    const def = t.y + '-' + String(t.m).padStart(2, '0');
+    const def = S.pid || (t.y + '-' + String(t.m).padStart(2, '0'));
     return `<div class="panel" id="create-period"><h2>Buat periode penilaian</h2>
       <p class="hint">Periode biasanya dibuat & dibuka otomatis tiap tanggal ${S.boot.jadwal.buka}. Buat manual bila perlu lebih awal.</p>
       <div class="row"><input class="input" type="month" id="np-pid" value="${def}" style="width:auto">
@@ -2023,6 +2054,67 @@
     };
   }
 
+
+  /* ================================================================== KELOLA PERIODE */
+  async function pageKelolaPeriode(main) {
+    const t = S.boot.hariIni;
+    const nowPid = t.y + '-' + String(t.m).padStart(2, '0');
+    let year = Number(store.get('kp.year')) || Number((S.pid || nowPid).slice(0, 4));
+    const latihan = !!S.boot.latihan;
+    const draw = () => {
+      const byId = Object.fromEntries((S.boot.periode || []).map((p) => [p.PeriodeID, p]));
+      const years = [...new Set((S.boot.periode || []).map((p) => Number(p.PeriodeID.slice(0, 4))).concat([t.y - 1, t.y, t.y + 1, year]))].sort((a, b) => b - a);
+      const card = (m) => {
+        const id = year + '-' + String(m).padStart(2, '0');
+        const p = byId[id];
+        const future = id > nowPid;
+        const blocked = future && !latihan;
+        let tag = '', acts = '';
+        if (!p) {
+          tag = '<span class="pill mute">Belum dibuat</span>';
+          acts = blocked ? '<span class="small muted">Belum dijalani</span>' : `<button class="btn sm" data-a="new" data-id="${id}">Buat & buka</button>`;
+        } else {
+          tag = statusPill(p.Status);
+          if (p.Status === 'DRAFT' || p.Status === 'DITUTUP') acts = blocked ? '<span class="small muted">Belum dijalani</span>' : `<button class="btn sm" data-a="buka" data-id="${id}">Buka pengisian</button>`;
+          if (p.Status === 'DIBUKA') acts = `<button class="btn ghost sm" data-a="tutup" data-id="${id}">Kunci pengisian</button>`;
+          if (!acts) acts = '<span class="small muted">Sudah lanjut ke pengesahan</span>';
+        }
+        const cur = id === nowPid ? '<span class="tag">bulan ini</span>' : '';
+        return `<div class="panel" style="margin:0;padding:16px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="serif" style="font-size:19px;font-weight:600">${BULAN[m - 1]}</div><div class="small muted">${year}</div></div>${cur}</div>
+          <div style="margin:10px 0">${tag}</div><div class="row">${acts}${p ? `<button class="btn ghost sm" data-a="go" data-id="${id}">Lihat</button>` : ''}</div></div>`;
+      };
+      main.innerHTML = `<div class="page-head"><div><h1>Kelola periode</h1><p class="sub">Buka atau kunci pengisian penilaian per bulan.</p></div>
+        <div class="actions"><select class="input" id="kp-year" style="width:auto" aria-label="Tahun">${years.map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></div></div>
+        <div class="note ${latihan ? 'warn' : ''}" style="margin-bottom:16px"><p>${latihan
+          ? '<b>Mode latihan aktif.</b> Bulan mana pun, termasuk yang belum dijalani, boleh dibuat dan dibuka. Periode yang dibuka manual tidak ditutup otomatis. Matikan di Pengaturan saat dipakai sungguhan.'
+          : 'Hanya bulan berjalan dan bulan-bulan sebelumnya yang bisa dibuka. Bulan yang belum dijalani terkunci.'}</p></div>
+        <div class="note" style="margin-bottom:16px"><p><b>Kunci pengisian</b> = penilai tidak bisa mengubah nilai lagi (status Finalisasi HR). <b>Buka pengisian</b> = penilai dan HR bisa mengisi lagi. Periode yang sudah masuk voting atau pengesahan diatur dari Beranda.</p></div>
+        <div class="grid-3" style="gap:14px">${Array.from({ length: 12 }, (_, i) => card(i + 1)).join('')}</div>`;
+      $('#kp-year', main).onchange = (e) => { year = Number(e.target.value); store.set('kp.year', String(year)); draw(); };
+      $$('[data-a]', main).forEach((b) => b.onclick = async () => {
+        const id = b.dataset.id, a = b.dataset.a;
+        try {
+          if (a === 'go') { S.pid = id; store.set('pid', id); renderPeriodPicker(); location.hash = '#/beranda'; return; }
+          if (a === 'new') {
+            if (!await confirmBox('Buat & buka periode', `<p>Periode <b>${esc(labelPid(id))}</b> dibuat dan langsung dibuka untuk pengisian penilaian.</p>`, 'Buat & buka')) return;
+            await withBusy('Memproses…', () => write('buatPeriode', { pid: id, langsungBuka: true }));
+          } else if (a === 'buka') {
+            const per = byId[id];
+            const payload = { pid: id, ke: 'buka' };
+            if (per.Status === 'DITUTUP') { const r = await askReason('Buka kembali pengisian', `<p>Penilai bisa mengubah nilai ${esc(labelPid(id))} lagi. Hasil perhitungan harus dihitung ulang setelahnya.</p>`, 'Buka kembali'); if (!r) return; payload.alasan = r; }
+            else if (!await confirmBox('Buka pengisian', `<p>Penilai bisa mulai mengisi penilaian ${esc(labelPid(id))}.</p>`, 'Buka')) return;
+            await withBusy('Memproses…', () => write('ubahStatusPeriode', payload));
+          } else if (a === 'tutup') {
+            if (!await confirmBox('Kunci pengisian', `<p>Penilai tidak bisa mengubah nilai ${esc(labelPid(id))} lagi. Bisa dibuka kembali dengan alasan.</p>`, 'Kunci', 'danger')) return;
+            await withBusy('Memproses…', () => write('ubahStatusPeriode', { pid: id, ke: 'tutup' }));
+          }
+          await refreshBoot(); toast('Periode diperbarui.', 'ok'); draw();
+        } catch (e) { toast(e.message, 'err'); }
+      });
+    };
+    draw();
+  }
+
   /* ================================================================== PENGATURAN */
   async function pagePengaturan(main) {
     const r = await api('ambilPengaturan');
@@ -2037,13 +2129,13 @@
       <section class="panel"><h2>Jadwal bulanan</h2><p class="hint">Sesuai SPO: penilaian tgl 21–25, perhitungan HR mulai tgl 26, penyerahan tgl 15 bulan berikutnya.</p>
         <div class="grid-3">${f('TGL_BUKA', 'Tanggal dibuka', 'Periode dibuat & dibuka otomatis', 'number', 'min="1" max="28"')}${f('TGL_TUTUP', 'Batas akhir pengisian', 'Hari peringatan terakhir', 'number', 'min="1" max="28"')}${f('TGL_HITUNG', 'Tanggal ditutup & dihitung', 'Otomatis pukul 07.00', 'number', 'min="1" max="28"')}
         ${f('TGL_PENYERAHAN', 'Tanggal penyerahan', 'Bulan berikutnya, tercantum di email pemenang', 'number', 'min="1" max="28"')}${f('HARI_PENGINGAT', 'Tanggal kirim pengingat', 'Pisahkan dengan koma, mis. 21,24,25')}
-        <div class="stack" style="align-content:start;padding-top:24px"><label class="check"><input type="checkbox" data-k="AUTO_BUKA" ${v.AUTO_BUKA === 'Y' ? 'checked' : ''}> Buka periode otomatis</label><label class="check"><input type="checkbox" data-k="AUTO_TUTUP" ${v.AUTO_TUTUP === 'Y' ? 'checked' : ''}> Tutup & hitung otomatis</label></div></div></section>
+        <div class="stack" style="align-content:start;padding-top:24px"><label class="check"><input type="checkbox" data-k="AUTO_BUKA" ${v.AUTO_BUKA === 'Y' ? 'checked' : ''}> Buka periode otomatis</label><label class="check"><input type="checkbox" data-k="AUTO_TUTUP" ${v.AUTO_TUTUP === 'Y' ? 'checked' : ''}> Tutup & hitung otomatis</label><label class="check"><input type="checkbox" data-k="MODE_LATIHAN" ${v.MODE_LATIHAN !== 'T' ? 'checked' : ''}> Mode latihan (bulan mana pun boleh dibuka)</label></div></div></section>
       <section class="panel"><h2>Email pemenang</h2><p class="hint">Email ucapan + sertifikat dikirim ke pemenang dengan CC ke manajemen.</p>
         <div class="grid-2"><label class="field"><span>Mode pengiriman</span><select class="input" data-k="MODE_KIRIM"><option value="MANUAL" ${v.MODE_KIRIM === 'MANUAL' ? 'selected' : ''}>Manual — Super Admin klik "Kirim ke pemenang"</option><option value="OTOMATIS" ${v.MODE_KIRIM === 'OTOMATIS' ? 'selected' : ''}>Otomatis — langsung terkirim begitu disahkan</option></select></label>
         <label class="field"><span>CC manajemen</span><textarea class="input" data-k="CC_MANAJEMEN" placeholder="email1@..., email2@...">${esc(v.CC_MANAJEMEN || '')}</textarea><small>Pisahkan dengan koma.</small></label>
         ${f('NAMA_PENGIRIM', 'Nama pengirim', '')}${f('EMAIL_ALIAS', 'Alamat pengirim (Send As)', 'Kosongkan bila tidak memakai alias Gmail', 'email')}
         ${f('APP_URL', 'Link aplikasi', 'URL GitHub Pages; dipakai untuk tombol di email', 'url')}
-        ${f('PASSWORD_AWAL_KARYAWAN', 'Password awal umum karyawan', 'Dipakai untuk semua akun karyawan baru. Kosongkan = acak per orang. Min. 4 karakter, huruf dan angka. Wajib diganti saat login pertama.', 'text')}</div></section>
+        ${f('PASSWORD_AWAL_KARYAWAN', 'Password awal umum karyawan', 'Dipakai untuk semua akun karyawan baru. Kosongkan = acak per orang. Min. 4 karakter, boleh huruf, angka, atau campuran. Wajib diganti saat login pertama.', 'text')}</div></section>
       <section class="panel"><h2>Kandidat & bobot</h2>
         <div class="grid-3">${f('JUMLAH_BACKUP', 'Jumlah backup disimpan', 'Backup otomatis tiap tanggal 1; yang lebih lama dibuang', 'number', 'min="3" max="60"')}${f('KANDIDAT_SPV_PER_DIV', 'Kandidat SPV per divisi', '', 'number', 'min="0" max="12"')}${f('KANDIDAT_STAF_PER_DIV', 'Kandidat Staf per divisi', '', 'number', 'min="0" max="12"')}${f('JEDA_MENANG_BULAN', 'Jeda menang lagi (bulan)', '0 = boleh menang berturut-turut', 'number', 'min="0" max="12"')}
         ${f('BOBOT_KEHADIRAN', 'Bobot kehadiran (%)', '', 'number')}${f('BOBOT_PA', 'Bobot Performance Appraisal (%)', '', 'number')}${f('BOBOT_GROOMING', 'Bobot grooming (%)', 'Total ketiganya harus 100', 'number')}</div></section>
