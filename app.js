@@ -52,6 +52,7 @@
     home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
     pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8M12 17h.01"/>',
     cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
     chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
@@ -317,7 +318,9 @@
     { href: '#/jabatan', label: 'Master jabatan', icon: 'badge', roles: [SA, HR] },
     { href: '#/pengguna', label: 'Pengguna & akses', icon: 'key', roles: [SA] },
     { href: '#/pengaturan', label: 'Pengaturan', icon: 'gear', roles: [SA] },
-    { href: '#/log', label: 'Log aktivitas', icon: 'list', roles: [SA] }
+    { href: '#/log', label: 'Log aktivitas', icon: 'list', roles: [SA] },
+    { group: 'Bantuan' },
+    { href: '#/panduan', label: 'Panduan', icon: 'help', roles: [SA, HR, PEN, DIR, MGR, KAR] }
   ];
 
   const navAllowed = (n) => can(...n.roles) || (n.also && n.also());
@@ -378,7 +381,7 @@
   /* ------------------------------------------------------------------ router */
   const ROUTES = {
     beranda: pageBeranda, 'nilai-saya': pageNilaiSaya, penilaian: pagePenilaian, kehadiran: pageKehadiran, hasil: pageHasil, vote: pageVote, pemenang: pagePemenang, undian: pageUndian, laporan: pageLaporan, rekap: pageRekap,
-    riwayat: pageRiwayat, karyawan: pageKaryawan, jabatan: pageJabatan, periode: async () => { location.hash = '#/pengaturan'; }, pengguna: pagePengguna, pengaturan: pagePengaturan, log: pageLog
+    riwayat: pageRiwayat, karyawan: pageKaryawan, jabatan: pageJabatan, periode: async () => { location.hash = '#/pengaturan'; }, pengguna: pagePengguna, pengaturan: pagePengaturan, log: pageLog, panduan: pagePanduan
   };
   let leaveGuard = null;
   window.addEventListener('beforeunload', (e) => { if (leaveGuard && leaveGuard()) { e.preventDefault(); e.returnValue = ''; } });
@@ -2211,6 +2214,125 @@
       const bobotPengurang = {}; $$('[data-bp]', main).forEach((el) => { bobotPengurang[el.dataset.bp] = Number(el.value); });
       try { await withBusy('Menyimpan…', () => write('simpanPengaturan', { nilai, bobotPengurang })); await refreshBoot(); toast('Pengaturan tersimpan.', 'ok'); route(); } catch (e) { toast(e.message, 'err'); }
     };
+  }
+
+  /* ================================================================== PANDUAN */
+  const PANDUAN_MENU = {
+    '#/beranda': 'Ringkasan periode: tahap sekarang, tugas Anda, dan tombol aksi (tutup penilaian, ajukan ke Direksi, dst).',
+    '#/nilai-saya': 'Melihat nilai Anda sendiri per bulan: Kehadiran, Performance Appraisal, dan Grooming.',
+    '#/penilaian': 'Daftar karyawan yang Anda nilai. Klik nama untuk mengisi Performance Appraisal dan Grooming.',
+    '#/kehadiran': 'HR mengisi jumlah kejadian kehadiran tiap karyawan (manual atau impor Excel).',
+    '#/hasil': 'Ranking total nilai per level (SPV dan Staf), lengkap dengan rincian tiap komponen.',
+    '#/vote': 'Voting manajer departemen untuk memilih kandidat terbaik sebelum Direksi memutuskan.',
+    '#/pemenang': 'Pemenang periode, pengesahan oleh Direksi, sertifikat, dan pengiriman email ucapan.',
+    '#/undian': 'Undian hadiah untuk pemenang (putar undian, hasilnya tersimpan).',
+    '#/laporan': 'Laporan bulanan siap kirim: unduh PDF/Excel atau kirim lewat email.',
+    '#/rekap': 'Rekap semua bulan dalam satu tabel, bisa diekspor ke Excel.',
+    '#/riwayat': 'Riwayat pemenang dan nilai per karyawan dari bulan ke bulan.',
+    '#/karyawan': 'Data induk karyawan: level, divisi, penilai (NIKPenilai), dan pembuatan akun login.',
+    '#/jabatan': 'Data induk jabatan dan penilai bawaan tiap jabatan.',
+    '#/pengguna': 'Akun untuk penilai, manajer, Direksi, HR, dan admin: peran, reset password.',
+    '#/pengaturan': 'Jadwal bulanan, akses bulan, bobot, email, hadiah, backup, dan mode latihan.',
+    '#/log': 'Catatan semua aktivitas dan email yang dikirim sistem.'
+  };
+  const PANDUAN_AKSI = [
+    ['menu', 'Tombol garis tiga', 'Membuka/menutup menu samping (di HP atau layar sempit).'],
+    ['download', 'Panah ke bawah', 'Unduh: template Excel, laporan PDF/Excel, atau sertifikat.'],
+    ['upload', 'Panah ke atas', 'Impor Excel: mengisi banyak data sekaligus dari file.'],
+    ['mail', 'Amplop', 'Kirim email: pengingat ke penilai, laporan, atau email ucapan pemenang.'],
+    ['refresh', 'Dua panah memutar', 'Muat ulang / periksa ulang / ambil data terbaru.'],
+    ['key', 'Kunci', 'Akun dan password: buat akun, reset password.'],
+    ['dice', 'Dadu', 'Putar undian hadiah.'],
+    ['star', 'Bintang', 'Pemenang dan sertifikat.'],
+    ['shield', 'Perisai', 'Keamanan data: Backup sekarang dan pemeriksaan kesiapan.'],
+    ['me', 'Siluet orang', 'Data Anda sendiri (Nilai saya).']
+  ];
+  const PANDUAN_PERAN = [
+    { id: 'kar', judul: 'Karyawan (melihat nilai sendiri)', roles: [KAR, SA, HR, PEN, DIR, MGR], langkah: [
+      'Masuk dengan <b>NIK</b> dan password. Saat pertama kali, sistem meminta Anda mengganti password (minimal 4 karakter).',
+      'Buka <b>Nilai saya</b>, lalu pilih bulan di kanan atas.',
+      'Total nilai tampil setelah ketiga komponen masuk: Kehadiran (35%), Performance Appraisal (40%), dan Grooming (25%). Selama belum lengkap, statusnya <b>Sementara</b>.',
+      'Lupa password? Minta HR/Super Admin untuk mereset, lalu ganti lagi setelah masuk.'] },
+    { id: 'pen', judul: 'Penilai (SPV, koordinator, manajer)', roles: [PEN, SA], langkah: [
+      'Buka <b>Isi penilaian</b>. Daftar berisi karyawan yang menjadi bawahan Anda di Master karyawan.',
+      'Klik nama karyawan. Ada dua tab: <b>Performance Appraisal</b> (30 pernyataan) dan <b>Grooming</b> (20 butir). Beri skor 1 sampai 5 pada tiap baris.',
+      'Bilah bawah menunjukkan jumlah terisi, total, kategori, dan skor sementara.',
+      '<b>Simpan draf</b> kalau belum selesai. Setelah semua terisi, klik <b>Kirim penilaian</b>. Sebelum masa pengisian berakhir nilai yang sudah dikirim masih bisa diubah (<b>Simpan perubahan</b>).',
+      'Penilaian hanya bisa diisi saat periode berstatus <b>Penilaian dibuka</b> (biasanya tanggal 21 sampai 25). Di luar itu halaman hanya bisa dilihat.',
+      'Terlambat? Minta Super Admin memberi <b>akses susulan</b> beberapa hari.'] },
+    { id: 'mgr', judul: 'Manajer Departemen (voting)', roles: [MGR, SA, DIR, HR], langkah: [
+      'Saat voting dibuka, Beranda menampilkan tombol <b>Buka halaman voting</b>, atau pilih menu <b>Voting manajer</b>.',
+      'Anda memilih kandidat dari divisi lain (bukan divisi sendiri). Kalau tulisan "Tidak ada kandidat" muncul, tidak ada kandidat di luar divisi Anda.',
+      'Pilih sesuai aturan yang tampil di halaman (jumlah pilihan per level), lalu klik <b>Kirim suara</b>. Suara masih bisa diubah (<b>Simpan perubahan suara</b>) selama voting belum ditutup.',
+      'Hasil sementara sengaja disembunyikan sampai voting ditutup supaya objektif.'] },
+    { id: 'dir', judul: 'Direksi (memilih dan mengesahkan)', roles: [DIR, SA], langkah: [
+      'Setelah HR/Super Admin mengajukan, Anda menerima email. Buka menu <b>Pemenang</b>.',
+      'Lihat daftar finalis dan rekomendasi sistem. Anda boleh memilih finalis mana pun.',
+      'Klik <b>Pratinjau sertifikat</b> untuk memeriksa, lalu <b>Sahkan pemenang</b>.',
+      '<b>Setelah disahkan, periode terkunci</b> dan tidak bisa diubah lagi (kecuali bulan latihan).',
+      'Menu <b>Undian hadiah</b> dipakai untuk memutar hadiah setelah pemenang disahkan.'] },
+    { id: 'hr', judul: 'Admin HR (data dan kehadiran)', roles: [HR, SA], langkah: [
+      'Pastikan <b>Master karyawan</b> lengkap: level, divisi, dan <b>NIKPenilai</b>. Tanda peringatan di halaman itu menunjukkan data yang perlu dibenahi.',
+      'Karyawan baru: <b>Tambah karyawan</b>, isi detail, lalu <b>Buat akun karyawan</b> supaya bisa login dengan NIK.',
+      'Buka <b>Data kehadiran</b>. Isi jumlah kejadian per karyawan, atau klik <b>Unduh template</b>, isi di Excel, lalu <b>Impor Excel</b>. Centang <b>Cuti khusus</b> bagi yang cuti khusus. Klik <b>Simpan perubahan</b>.',
+      'Pantau di <b>Hasil &amp; ranking</b> dan di Beranda siapa penilai yang belum selesai; tombol <b>Ingatkan</b> mengirim email pengingat.',
+      'Tutup bulan: laporan di <b>Laporan bulanan</b> dan <b>Rekap semua bulan</b> bisa diunduh.'] },
+    { id: 'sa', judul: 'Super Admin (alur bulanan dan pengaturan)', roles: [SA], langkah: [
+      'Jadwal berjalan otomatis (pemicu harian pukul 07.00). Lihat <b>Pengaturan › Jadwal bulanan</b> untuk tanggal buka, batas isi, tutup &amp; hitung, dan pengingat.',
+      'Buka/kunci bulan secara manual di <b>Pengaturan › Akses bulan penilaian</b>. Bulan yang belum dijalani tidak bisa dibuka, kecuali bulan latihan (lihat kolom <b>Latihan berlaku sampai</b>).',
+      'Di <b>Beranda</b> tombol aksi mengikuti tahap: <b>Tutup penilaian</b>, lalu <b>Buka voting manajer</b> atau <b>Ajukan ke Direksi</b>, lalu <b>Tutup voting &amp; ajukan</b>. <b>Tarik pengajuan</b> mengembalikan tahap (suara yang masuk dihapus).',
+      'Karyawan yang tidak boleh ikut pemilihan bulan ini (misalnya sedang cuti panjang): klik <b>Kecualikan</b> di Hasil &amp; ranking dan isi alasannya. Bisa dibatalkan selama belum diajukan ke Direksi.',
+      '<b>Pengguna &amp; akses</b>: buat akun penilai/manajer/Direksi (NIK, peran). <b>Buat password untuk yang belum punya</b> membuat massal. <b>Reset password</b> untuk yang lupa.',
+      '<b>Backup sekarang</b> di Pengaturan membuat salinan data. Lakukan sebelum membersihkan data uji.',
+      'Sebelum dipakai sungguhan: matikan <b>Mode latihan</b> dan periksa <b>Cek kesiapan</b> di Pengaturan.'] }
+  ];
+  const PANDUAN_ALUR = [
+    ['Persiapan', 'HR melengkapi master dan kehadiran'],
+    ['Penilaian dibuka', 'Penilai mengisi PA dan Grooming (tgl 21 sampai 25)'],
+    ['Finalisasi HR', 'Penilaian ditutup dan nilai dihitung (tgl 26)'],
+    ['Voting manajer', 'Manajer dept memilih kandidat (jika diaktifkan)'],
+    ['Menunggu pengesahan', 'Direksi memilih dan mengesahkan'],
+    ['Disahkan', 'Data terkunci, sertifikat dibuat'],
+    ['Diumumkan', 'Email ucapan terkirim ke pemenang']
+  ];
+  const PANDUAN_FAQ = [
+    ['Halaman tidak mau terbuka atau tampil error?', 'Klik <b>Muat ulang</b>. Kalau masih, tekan Ctrl+F5. Kalau ada pesan "bukan bagian dari daftar yang Anda nilai", pilih lagi karyawan dari menu <b>Isi penilaian</b>.'],
+    ['Kenapa saya tidak bisa mengisi penilaian?', 'Periksa tiga hal: (1) status periode harus <b>Penilaian dibuka</b>, (2) bulan di kanan atas sudah benar, (3) nama Anda tercatat sebagai NIKPenilai bagi karyawan itu di Master karyawan.'],
+    ['Bulan yang saya pilih "belum dibuat".', 'Hanya Super Admin yang bisa membuat dan membuka periode. Hubungi Super Admin.'],
+    ['Nilai saya menampilkan tanda "—".', 'Berarti ada komponen yang belum masuk (kehadiran dari HR, PA atau Grooming dari penilai). Nilai muncul begitu semuanya lengkap.'],
+    ['Kenapa tidak ada kandidat untuk saya di voting?', 'Anda tidak boleh memilih kandidat dari divisi sendiri. Jika semua kandidat berasal dari divisi Anda, tidak ada yang bisa dipilih.'],
+    ['Periode sudah disahkan tapi ada yang salah.', 'Periode yang disahkan Direksi terkunci dan tidak bisa diubah. Hubungi Super Admin untuk penanganan di luar sistem.'],
+    ['Lupa password.', 'Minta Super Admin/HR menekan <b>Reset password</b>. Password sementara akan diberikan, lalu Anda mengganti sendiri setelah masuk (<b>Ganti password</b> di kiri bawah).']
+  ];
+
+  async function pagePanduan(main) {
+    const roles = S.user.peran;
+    const semua = store.get('panduan.semua') === '1';
+    const bolehPeran = (p) => semua || p.roles.some((r) => roles.includes(r));
+    const menus = NAV.filter((n) => n.href && n.href !== '#/panduan' && (semua || navAllowed(n)));
+    const pil = Object.entries(STATUS_LABEL).map(([, [l, c]]) => `<tr><td><span class="pill ${c}">${esc(l)}</span></td><td>${esc((PANDUAN_ALUR.find((a) => a[0] === l) || [, ''])[1])}</td></tr>`).join('');
+    const extra = [
+      ['<span class="pill warn">Sementara</span>', 'Nilai belum lengkap, akan bertambah saat data masuk.'],
+      ['<span class="pill mute">Belum</span>', 'Belum diisi atau belum dikirim.'],
+      ['<span class="pill ok">Terkirim / Selesai</span>', 'Sudah dikirim atau selesai.'],
+      ['<span class="pill gold">Direkomendasikan</span>', 'Pilihan teratas menurut sistem. Direksi tetap boleh memilih finalis lain.']
+    ].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+    main.innerHTML = `<div class="page-head"><div><h1>Panduan</h1><p class="sub">Arti ikon dan warna, serta cara memakai aplikasi sesuai peran Anda.</p></div>
+        <div class="actions"><label class="check"><input type="checkbox" id="pd-semua" ${semua ? 'checked' : ''}> Tampilkan panduan semua peran</label></div></div>
+      <div class="panel"><div class="panel-head"><div class="grow"><h2>Arti menu</h2><p class="hint" style="margin:0">Ikon di menu kiri.</p></div></div>
+        <div class="pd-list">${menus.map((n) => `<div class="pd-row"><span class="pd-ic">${ico(n.icon)}</span><div><b>${esc(n.label)}</b><div class="small muted">${PANDUAN_MENU[n.href] || ''}</div></div></div>`).join('')}</div></div>
+      <div class="panel"><div class="panel-head"><div class="grow"><h2>Arti ikon tombol</h2></div></div>
+        <div class="pd-list">${PANDUAN_AKSI.map(([i, n, d]) => `<div class="pd-row"><span class="pd-ic">${ico(i)}</span><div><b>${esc(n)}</b><div class="small muted">${esc(d)}</div></div></div>`).join('')}</div></div>
+      <div class="panel"><div class="panel-head"><div class="grow"><h2>Arti warna status</h2><p class="hint" style="margin:0">Tahap periode dan label yang sering muncul.</p></div></div>
+        <div class="table-wrap"><table class="t"><thead><tr><th>Label</th><th>Artinya</th></tr></thead><tbody>${pil}${extra}</tbody></table></div></div>
+      <div class="panel"><div class="panel-head"><div class="grow"><h2>Alur satu bulan</h2></div></div>
+        <ol class="pd-alur">${PANDUAN_ALUR.map(([a, b]) => `<li><b>${esc(a)}</b><span class="small muted">${esc(b)}</span></li>`).join('')}</ol>
+        <div class="note" style="margin-top:12px"><p>Total nilai = Kehadiran 35% + Performance Appraisal 40% + Grooming 25%. Kehadiran dimulai dari 100 lalu dikurangi poin tiap kejadian (misalnya izin tanpa keterangan 5, terlambat lebih dari 10 menit 2).</p></div></div>
+      <div class="panel"><div class="panel-head"><div class="grow"><h2>Cara memakai</h2><p class="hint" style="margin:0">Klik judul untuk membuka langkah-langkahnya.</p></div></div>
+        ${PANDUAN_PERAN.filter(bolehPeran).map((p, i) => `<details class="pd-acc" ${i === 0 ? 'open' : ''}><summary>${esc(p.judul)}</summary><ol>${p.langkah.map((l) => `<li>${l}</li>`).join('')}</ol></details>`).join('')}</div>
+      <div class="panel"><div class="panel-head"><div class="grow"><h2>Tanya jawab</h2></div></div>
+        ${PANDUAN_FAQ.map(([q, a]) => `<details class="pd-acc"><summary>${esc(q)}</summary><p>${a}</p></details>`).join('')}</div>`;
+    $('#pd-semua', main).onchange = (e) => { store.set('panduan.semua', e.target.checked ? '1' : '0'); pagePanduan(main); };
   }
 
   /* ================================================================== LOG */
