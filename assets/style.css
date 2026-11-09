@@ -481,3 +481,18 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
 select.input.rk { min-width: 150px; }
 .vote-lv + .vote-lv { margin-top: 18px; }
 .vote-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 2px 0 6px; }
+
+/* Panduan */
+.pd-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px 24px; }
+.pd-row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--line, #e3ebeb); }
+.pd-ic { flex: none; width: 34px; height: 34px; border-radius: 9px; background: var(--ink); color: #fff; display: grid; place-items: center; }
+.pd-ic svg { width: 18px; height: 18px; }
+.pd-alur { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; counter-reset: pd; }
+.pd-alur li { counter-increment: pd; border: 1px solid var(--line, #e3ebeb); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.pd-alur li::before { content: counter(pd); font-weight: 700; color: var(--gold); font-size: 13px; }
+.pd-acc { border: 1px solid var(--line, #e3ebeb); border-radius: 10px; padding: 0 14px; margin-bottom: 8px; }
+.pd-acc summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.pd-acc ol, .pd-acc p { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; }
+.pd-acc p { padding-left: 0; }
+.pd-acc li { margin-bottom: 6px; }
+@media (max-width: 760px) { .pd-list { grid-template-columns: 1fr; } }
