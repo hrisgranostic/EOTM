@@ -496,3 +496,26 @@ select.input.rk { min-width: 150px; }
 .pd-acc p { padding-left: 0; }
 .pd-acc li { margin-bottom: 6px; }
 @media (max-width: 760px) { .pd-list { grid-template-columns: 1fr; } }
+
+/* Mode simulasi */
+.sim-toggle { position: fixed; right: 16px; bottom: 16px; z-index: 5; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px dashed var(--gold); background: rgba(255,255,255,.85); color: #8a6420; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; backdrop-filter: blur(4px); }
+.sim-toggle svg { width: 16px; height: 16px; }
+.sim-toggle:hover, .sim-toggle.on { background: var(--gold); border-style: solid; color: #fff; }
+.note.sim { border-color: var(--gold); background: var(--gold-soft); margin-bottom: 14px; }
+.sim-bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: repeating-linear-gradient(135deg, #f3e2b8, #f3e2b8 14px, #f8ecd0 14px, #f8ecd0 28px); color: #6b4d12; font-size: 13px; border-bottom: 1px solid var(--gold); }
+.sim-bar svg { width: 18px; height: 18px; flex: none; }
+.sim-bar span { flex: 1; }
+.sim-bar button { flex: none; border: 1px solid #6b4d12; background: transparent; color: #6b4d12; border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.sim-bar button:hover { background: #6b4d12; color: #fff; }
+body.is-sim .side { box-shadow: inset 4px 0 0 var(--gold); }
+@media (max-width: 760px) { .sim-toggle { right: 12px; bottom: 12px; } .sim-bar { flex-wrap: wrap; } }
+
+/* Hak cipta */
+.login-form { position: relative; padding-bottom: 150px; }
+.login-copy { position: absolute; left: 0; right: 0; bottom: 62px; padding: 0 20px; text-align: center; font-size: 10.5px; line-height: 1.55; color: #6f7d7d; overflow-wrap: anywhere; }
+.login-copy span, .about-copy span { display: block; }
+.about-copy { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .login-form { padding-bottom: 150px; } .login-copy { padding: 0 16px; } }
+
+/* Struktur organisasi */
+#e-Divisi[readonly] { background: var(--bg-soft, rgba(127,127,127,.08)); color: var(--muted); cursor: default; }
